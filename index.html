@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My RSS Reader</title>
+  <style>
+    :root {
+      --bg: #0d0d10;
+      --surface: #16161b;
+      --surface2: #1e1e25;
+      --border: #2a2a35;
+      --accent: #8b80f9;
+      --accent-dim: #3a3568;
+      --text: #e8e8f2;
+      --text-muted: #7a7a92;
+      --text-faint: #4a4a5a;
+      --reddit: #ff4500;
+      --verge: #fa4b2a;
+      --nyt: #2b6cb0;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    /* ── Header ──────────────────────────────────── */
+    header {
+      background: rgba(22, 22, 27, 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 58px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      letter-spacing: -0.3px;
+    }
+
+    .logo svg { width: 22px; height: 22px; }
+
+    .btn-refresh {
+      background: var(--accent-dim);
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      padding: 7px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: opacity 0.15s, transform 0.1s;
+      font-family: inherit;
+    }
+    .btn-refresh:hover { opacity: 0.85; }
+    .btn-refresh:active { transform: scale(0.97); }
+    .btn-refresh:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+    .spin { animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Nav Tabs ─────────────────────────────────── */
+    .nav-wrapper {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .nav-wrapper::-webkit-scrollbar { display: none; }
+
+    nav {
+      display: flex;
+      padding: 0 20px;
+      gap: 2px;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .tab {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      padding: 14px 18px;
+      font-size: 13.5px;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: inherit;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 2px solid transparent;
+      transition: color 0.15s, border-color 0.15s;
+      white-space: nowrap;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active {
+      color: var(--text);
+      border-bottom-color: var(--accent);
+      font-weight: 600;
+    }
+
+    .tab-badge {
+      background: var(--surface2);
+      border-radius: 10px;
+      padding: 2px 7px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .source-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* ── Content ──────────────────────────────────── */
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 28px 24px;
+    }
+
+    .feed-section { display: none; }
+    .feed-section.active { display: block; }
+
+    /* ── Feed Header ──────────────────────────────── */
+    .feed-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+
+    .feed-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      font-weight: 800;
+      color: white;
+      flex-shrink: 0;
+    }
+
+    .feed-name { font-size: 20px; font-weight: 700; line-height: 1.2; }
+    .feed-url { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+    /* ── Article Grid ─────────────────────────────── */
+    .articles-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 16px;
+    }
+
+    /* Featured article — spans full width */
+    .article-card.featured {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 0;
+    }
+
+    .article-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s;
+      text-decoration: none;
+      color: inherit;
+    }
+    .article-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+
+    .article-img-wrap {
+      position: relative;
+      overflow: hidden;
+      background: var(--surface2);
+    }
+
+    .article-card:not(.featured) .article-img-wrap {
+      aspect-ratio: 16/9;
+    }
+
+    .article-card.featured .article-img-wrap {
+      order: 2;
+      min-height: 240px;
+    }
+
+    .article-img-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform 0.3s;
+    }
+    .article-card:hover .article-img-wrap img {
+      transform: scale(1.04);
+    }
+
+    .article-img-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 160px;
+      color: var(--text-faint);
+    }
+
+    .article-body {
+      padding: 16px 18px 18px;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+
+    .article-card.featured .article-body {
+      padding: 24px 26px 26px;
+      justify-content: center;
+    }
+
+    .article-source-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .source-chip {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+
+    .article-time {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .article-title {
+      font-size: 15px;
+      font-weight: 700;
+      line-height: 1.45;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    .article-card.featured .article-title {
+      font-size: 20px;
+      line-height: 1.35;
+      margin-bottom: 12px;
+    }
+
+    .article-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      flex: 1;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .article-card.featured .article-desc {
+      -webkit-line-clamp: 4;
+    }
+
+    .read-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 14px;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--accent);
+      opacity: 0.85;
+      transition: opacity 0.15s;
+      align-self: flex-start;
+    }
+    .article-card:hover .read-link { opacity: 1; }
+
+    /* ── Status / Loading ─────────────────────────── */
+    .status {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+      gap: 12px;
+      font-size: 14px;
+    }
+
+    .loader {
+      width: 28px;
+      height: 28px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    .error-box {
+      background: #1f1015;
+      border: 1px solid #6b2c35;
+      color: #f08090;
+      border-radius: 10px;
+      padding: 16px 18px;
+      font-size: 13px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    /* ── Responsive ───────────────────────────────── */
+    @media (max-width: 640px) {
+      .article-card.featured {
+        grid-template-columns: 1fr;
+      }
+      .article-card.featured .article-img-wrap {
+        order: 0;
+        min-height: 200px;
+      }
+      .articles-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────── -->
+<header>
+  <div class="logo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 11a9 9 0 0 1 9 9"/>
+      <path d="M4 4a16 16 0 0 1 16 16"/>
+      <circle cx="5" cy="19" r="1" fill="currentColor" stroke="none"/>
+    </svg>
+    My RSS Reader
+  </div>
+  <button class="btn-refresh" id="refresh-btn" onclick="refreshAll()">
+    <svg id="refresh-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+    </svg>
+    Refresh
+  </button>
+</header>
+
+<!-- ── Nav ────────────────────────────────────────── -->
+<div class="nav-wrapper">
+  <nav>
+    <button class="tab active" onclick="switchTab('all')" id="tab-all">
+      All Feeds <span class="tab-badge" id="badge-all">0</span>
+    </button>
+    <button class="tab" onclick="switchTab('reddit')" id="tab-reddit">
+      <span class="source-dot" style="background:#ff4500"></span>
+      Reddit <span class="tab-badge" id="badge-reddit">0</span>
+    </button>
+    <button class="tab" onclick="switchTab('verge')" id="tab-verge">
+      <span class="source-dot" style="background:#fa4b2a"></span>
+      The Verge <span class="tab-badge" id="badge-verge">0</span>
+    </button>
+    <button class="tab" onclick="switchTab('nyt')" id="tab-nyt">
+      <span class="source-dot" style="background:#2b6cb0"></span>
+      New York Times <span class="tab-badge" id="badge-nyt">0</span>
+    </button>
+  </nav>
+</div>
+
+<!-- ── Sections ───────────────────────────────────── -->
+<div class="container">
+
+  <div class="feed-section active" id="section-all">
+    <div id="all-articles"></div>
+  </div>
+
+  <div class="feed-section" id="section-reddit">
+    <div class="feed-header">
+      <div class="feed-icon" style="background:#ff4500">R</div>
+      <div>
+        <div class="feed-name">Reddit</div>
+        <div class="feed-url">reddit.com/r/popular &mdash; Community-voted top stories</div>
+      </div>
+    </div>
+    <div id="reddit-articles"></div>
+  </div>
+
+  <div class="feed-section" id="section-verge">
+    <div class="feed-header">
+      <div class="feed-icon" style="background:#fa4b2a">V</div>
+      <div>
+        <div class="feed-name">The Verge</div>
+        <div class="feed-url">theverge.com &mdash; Tech, science &amp; culture</div>
+      </div>
+    </div>
+    <div id="verge-articles"></div>
+  </div>
+
+  <div class="feed-section" id="section-nyt">
+    <div class="feed-header">
+      <div class="feed-icon" style="background:#2b6cb0">N</div>
+      <div>
+        <div class="feed-name">New York Times</div>
+        <div class="feed-url">nytimes.com &mdash; Top stories homepage</div>
+      </div>
+    </div>
+    <div id="nyt-articles"></div>
+  </div>
+
+</div>
+
+<script>
+  const FEEDS = [
+    { id: 'reddit', name: 'Reddit',          color: '#ff4500', letter: 'R', url: 'https://www.reddit.com/r/popular.rss' },
+    { id: 'verge',  name: 'The Verge',       color: '#fa4b2a', letter: 'V', url: 'https://www.theverge.com/rss/index.xml' },
+    { id: 'nyt',    name: 'New York Times',  color: '#2b6cb0', letter: 'N', url: 'https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml' },
+  ];
+
+  const PROXY = 'https://api.allorigins.win/get?url=';
+  let allItems = [];
+
+  // ── Helpers ──────────────────────────────────────
+
+  function switchTab(id) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.feed-section').forEach(s => s.classList.remove('active'));
+    document.getElementById('tab-' + id).classList.add('active');
+    document.getElementById('section-' + id).classList.add('active');
+  }
+
+  function timeAgo(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    if (isNaN(d)) return '';
+    const s = Math.floor((Date.now() - d) / 1000);
+    if (s < 60)    return `${s}s ago`;
+    if (s < 3600)  return `${Math.floor(s/60)}m ago`;
+    if (s < 86400) return `${Math.floor(s/3600)}h ago`;
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+
+  function strip(html) {
+    if (!html) return '';
+    return html
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/&amp;/g, '&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&nbsp;/g,' ')
+      .replace(/\s+/g, ' ').trim();
+  }
+
+  function extractImage(item) {
+    // 1. media:content or media:thumbnail
+    const media = item.querySelector('content, thumbnail');
+    if (media) {
+      const url = media.getAttribute('url');
+      if (url && url.startsWith('http')) return url;
+    }
+    // 2. enclosure
+    const enc = item.querySelector('enclosure');
+    if (enc) {
+      const url = enc.getAttribute('url');
+      if (url && /\.(jpg|jpeg|png|webp|gif)(\?|$)/i.test(url)) return url;
+    }
+    // 3. og:image or img src in description/content:encoded
+    const descEl = item.querySelector('description, encoded, summary, content');
+    if (descEl) {
+      const raw = descEl.textContent || '';
+      const imgMatch = raw.match(/<img[^>]+src=["']([^"']+)["']/i);
+      if (imgMatch && imgMatch[1].startsWith('http')) return imgMatch[1];
+    }
+    return null;
+  }
+
+  function cardHtml(item, feed, featured = false) {
+    const imgUrl  = item.image;
+    const imgHtml = imgUrl
+      ? `<img src="${imgUrl}" alt="" loading="lazy" onerror="this.parentElement.innerHTML='<div class=article-img-placeholder><svg width=32 height=32 viewBox=0 0 24 24 fill=none stroke=%23333 stroke-width=1.5><rect x=3 y=3 width=18 height=18 rx=2/><circle cx=8.5 cy=8.5 r=1.5/><polyline points=21 15 16 10 5 21/></svg></div>'" />`
+      : `<div class="article-img-placeholder"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>`;
+
+    const desc = strip(item.description);
+
+    return `
+      <a class="article-card${featured ? ' featured' : ''}" href="${item.link || '#'}" target="_blank" rel="noopener noreferrer">
+        <div class="article-img-wrap">${imgHtml}</div>
+        <div class="article-body">
+          <div class="article-source-row">
+            <span class="source-chip" style="color:${feed.color}">
+              <span class="source-dot" style="background:${feed.color}"></span>
+              ${feed.name}
+            </span>
+            ${item.pubDate ? `<span class="article-time">${timeAgo(item.pubDate)}</span>` : ''}
+          </div>
+          <div class="article-title">${strip(item.title)}</div>
+          ${desc ? `<div class="article-desc">${desc}</div>` : ''}
+          <span class="read-link">
+            Read article
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+            </svg>
+          </span>
+        </div>
+      </a>`;
+  }
+
+  // ── Render ───────────────────────────────────────
+
+  function renderGrid(containerId, items, feed) {
+    const el = document.getElementById(containerId);
+    if (!items.length) { el.innerHTML = '<div class="status">No articles found.</div>'; return; }
+    el.innerHTML = `<div class="articles-grid">
+      ${items.map((item, i) => cardHtml(item, feed, i === 0)).join('')}
+    </div>`;
+  }
+
+  function renderAll() {
+    const el = document.getElementById('all-articles');
+    if (!allItems.length) { el.innerHTML = '<div class="status">No articles loaded.</div>'; return; }
+    const sorted = [...allItems].sort((a,b) => new Date(b.pubDate||0) - new Date(a.pubDate||0));
+    const feedMap = Object.fromEntries(FEEDS.map(f => [f.id, f]));
+    el.innerHTML = `<div class="articles-grid">
+      ${sorted.map((item, i) => cardHtml(item, feedMap[item._feedId], i === 0)).join('')}
+    </div>`;
+  }
+
+  // ── Parse ────────────────────────────────────────
+
+  function parseItems(xmlText, feedId) {
+    const doc = new DOMParser().parseFromString(xmlText, 'application/xml');
+    return Array.from(doc.querySelectorAll('item, entry')).slice(0, 15).map(item => ({
+      _feedId:     feedId,
+      title:       item.querySelector('title')?.textContent || '',
+      link:        (item.querySelector('link')?.textContent?.trim() ||
+                    item.querySelector('link')?.getAttribute('href') || ''),
+      description: item.querySelector('description, summary')?.textContent || '',
+      pubDate:     item.querySelector('pubDate, published, updated')?.textContent || '',
+      image:       extractImage(item),
+    }));
+  }
+
+  // ── Fetch ────────────────────────────────────────
+
+  async function fetchFeed(feed) {
+    const elId = feed.id + '-articles';
+    document.getElementById(elId).innerHTML = `<div class="status"><div class="loader"></div>Loading ${feed.name}…</div>`;
+    try {
+      const res  = await fetch(PROXY + encodeURIComponent(feed.url));
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data  = await res.json();
+      const items = parseItems(data.contents, feed.id);
+      renderGrid(elId, items, feed);
+      document.getElementById('badge-' + feed.id).textContent = items.length;
+      allItems = allItems.filter(i => i._feedId !== feed.id).concat(items);
+    } catch (err) {
+      document.getElementById(elId).innerHTML =
+        `<div class="error-box">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="flex-shrink:0;margin-top:1px">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <span>Could not load <strong>${feed.name}</strong>: ${err.message}</span>
+        </div>`;
+    }
+  }
+
+  async function refreshAll() {
+    const btn  = document.getElementById('refresh-btn');
+    const icon = document.getElementById('refresh-icon');
+    btn.disabled = true;
+    icon.classList.add('spin');
+    allItems = [];
+    document.getElementById('all-articles').innerHTML = `<div class="status"><div class="loader"></div>Fetching all feeds…</div>`;
+    document.getElementById('badge-all').textContent = '…';
+    await Promise.all(FEEDS.map(fetchFeed));
+    renderAll();
+    document.getElementById('badge-all').textContent = allItems.length;
+    btn.disabled = false;
+    icon.classList.remove('spin');
+  }
+
+  refreshAll();
+</script>
+</body>
+</html>
