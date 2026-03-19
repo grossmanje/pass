@@ -313,6 +313,43 @@
     }
     .article-card:hover .read-link { opacity: 1; }
 
+    /* ── Mark as Read ─────────────────────────────── */
+    .article-card.is-read {
+      opacity: 0.45;
+    }
+    .article-card.is-read .article-title {
+      text-decoration: line-through;
+      text-decoration-color: var(--text-faint);
+    }
+    .article-card.is-read:hover {
+      opacity: 0.7;
+    }
+    .read-badge {
+      margin-left: auto;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-faint);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: none;
+    }
+    .article-card.is-read .read-badge { display: inline; }
+
+    .btn-mark-all {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: inherit;
+      transition: color 0.15s, border-color 0.15s;
+      margin-left: 8px;
+    }
+    .btn-mark-all:hover { color: var(--text); border-color: var(--text-muted); }
+
     /* ── Status / Loading ─────────────────────────── */
     .status {
       display: flex;
@@ -374,13 +411,16 @@
     </svg>
     My RSS Reader
   </div>
-  <button class="btn-refresh" id="refresh-btn" onclick="refreshAll()">
-    <svg id="refresh-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-      <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
-      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-    </svg>
-    Refresh
-  </button>
+  <div style="display:flex;align-items:center;gap:8px">
+    <button class="btn-mark-all" onclick="markAllRead()">Mark all read</button>
+    <button class="btn-refresh" id="refresh-btn" onclick="refreshAll()">
+      <svg id="refresh-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+      </svg>
+      Refresh
+    </button>
+  </div>
 </header>
 
 <!-- ── Nav ────────────────────────────────────────── -->
@@ -448,13 +488,50 @@
 
 <script>
   const FEEDS = [
-    { id: 'reddit', name: 'Reddit',          color: '#ff4500', letter: 'R', url: 'https://www.reddit.com/r/popular.rss' },
+    { id: 'reddit', name: 'Reddit',          color: '#ff4500', letter: 'R', url: 'https://feeds.reddit.com/r/popular.rss' },
     { id: 'verge',  name: 'The Verge',       color: '#fa4b2a', letter: 'V', url: 'https://www.theverge.com/rss/index.xml' },
     { id: 'nyt',    name: 'New York Times',  color: '#2b6cb0', letter: 'N', url: 'https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml' },
   ];
 
-  const PROXY = 'https://api.allorigins.win/get?url=';
+  // Proxy chain — tried in order until one succeeds
+  const PROXIES = [
+    { build: u => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,          extract: r => r.text() },
+    { build: u => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`, extract: r => r.json().then(d => d.contents) },
+    { build: u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`, extract: r => r.text() },
+  ];
+
   let allItems = [];
+
+  // ── Mark-as-read (localStorage) ──────────────────
+  const READ_KEY = 'rss_read_urls';
+  function getReadSet() {
+    try { return new Set(JSON.parse(localStorage.getItem(READ_KEY) || '[]')); } catch { return new Set(); }
+  }
+  function saveReadSet(set) {
+    localStorage.setItem(READ_KEY, JSON.stringify([...set]));
+  }
+  let readSet = getReadSet();
+
+  function markRead(url) {
+    readSet.add(url);
+    saveReadSet(readSet);
+    document.querySelectorAll(`.article-card[href="${CSS.escape(url)}"]`).forEach(el => el.classList.add('is-read'));
+  }
+
+  function markAllRead() {
+    document.querySelectorAll('.article-card').forEach(el => {
+      if (el.href) { readSet.add(el.href); el.classList.add('is-read'); }
+    });
+    saveReadSet(readSet);
+  }
+
+  // Attach read-tracking to rendered cards
+  function attachReadListeners(container) {
+    container.querySelectorAll('.article-card').forEach(el => {
+      if (readSet.has(el.href)) el.classList.add('is-read');
+      el.addEventListener('click', () => markRead(el.href), { once: true });
+    });
+  }
 
   // ── Helpers ──────────────────────────────────────
 
@@ -525,6 +602,7 @@
               ${feed.name}
             </span>
             ${item.pubDate ? `<span class="article-time">${timeAgo(item.pubDate)}</span>` : ''}
+            <span class="read-badge">&#10003; Read</span>
           </div>
           <div class="article-title">${strip(item.title)}</div>
           ${desc ? `<div class="article-desc">${desc}</div>` : ''}
@@ -546,6 +624,7 @@
     el.innerHTML = `<div class="articles-grid">
       ${items.map((item, i) => cardHtml(item, feed, i === 0)).join('')}
     </div>`;
+    attachReadListeners(el);
   }
 
   function renderAll() {
@@ -556,6 +635,7 @@
     el.innerHTML = `<div class="articles-grid">
       ${sorted.map((item, i) => cardHtml(item, feedMap[item._feedId], i === 0)).join('')}
     </div>`;
+    attachReadListeners(el);
   }
 
   // ── Parse ────────────────────────────────────────
@@ -575,14 +655,28 @@
 
   // ── Fetch ────────────────────────────────────────
 
+  async function fetchWithFallback(url) {
+    let lastErr;
+    for (const proxy of PROXIES) {
+      try {
+        const res = await fetch(proxy.build(url), { signal: AbortSignal.timeout(8000) });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const text = await proxy.extract(res);
+        if (!text) throw new Error('Empty response');
+        return text;
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+    throw lastErr;
+  }
+
   async function fetchFeed(feed) {
     const elId = feed.id + '-articles';
     document.getElementById(elId).innerHTML = `<div class="status"><div class="loader"></div>Loading ${feed.name}…</div>`;
     try {
-      const res  = await fetch(PROXY + encodeURIComponent(feed.url));
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data  = await res.json();
-      const items = parseItems(data.contents, feed.id);
+      const text  = await fetchWithFallback(feed.url);
+      const items = parseItems(text, feed.id);
       renderGrid(elId, items, feed);
       document.getElementById('badge-' + feed.id).textContent = items.length;
       allItems = allItems.filter(i => i._feedId !== feed.id).concat(items);
