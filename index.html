@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Parallax Card Scroll</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- HERO SECTION -->
+  <section class="hero">
+    <div class="hero-content">
+      <p class="hero-tag">Creative Studio</p>
+      <h1 class="hero-title">
+        We craft <span class="highlight">digital</span><br>
+        experiences that<br>
+        <span class="highlight">inspire</span>.
+      </h1>
+      <p class="hero-subtitle">Strategy, design, and development — all under one roof.</p>
+      <a href="#services" class="hero-cta">Discover our services</a>
+    </div>
+    <div class="hero-scroll-indicator">
+      <div class="scroll-line"></div>
+      <span>Scroll</span>
+    </div>
+  </section>
+
+  <!-- SERVICES SECTION — Stacking Card Scroll -->
+  <section class="services" id="services">
+    <div class="services-header">
+      <p class="section-tag">What we do</p>
+      <h2 class="section-title">Our Services</h2>
+    </div>
+
+    <div class="cards-container">
+
+      <div class="card" data-index="0" style="--card-color: #0f0f0f; --accent: #c8ff00;">
+        <div class="card-inner">
+          <div class="card-left">
+            <span class="card-number">01</span>
+            <h3 class="card-title">Brand<br>Strategy</h3>
+            <p class="card-desc">We define your brand's DNA — positioning, messaging, and visual identity that resonate with your audience and set you apart.</p>
+            <a href="#" class="card-link">Learn more →</a>
+          </div>
+          <div class="card-right">
+            <div class="card-visual">
+              <div class="visual-shape shape-strategy"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" data-index="1" style="--card-color: #1a1a2e; --accent: #7b68ee;">
+        <div class="card-inner">
+          <div class="card-left">
+            <span class="card-number">02</span>
+            <h3 class="card-title">UX/UI<br>Design</h3>
+            <p class="card-desc">Intuitive interfaces and stunning visuals. We design digital products that users love and businesses rely on.</p>
+            <a href="#" class="card-link">Learn more →</a>
+          </div>
+          <div class="card-right">
+            <div class="card-visual">
+              <div class="visual-shape shape-design"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" data-index="2" style="--card-color: #1c2333; --accent: #00d4ff;">
+        <div class="card-inner">
+          <div class="card-left">
+            <span class="card-number">03</span>
+            <h3 class="card-title">Web<br>Development</h3>
+            <p class="card-desc">Performant, accessible, and scalable. From marketing sites to complex web applications — built with modern technologies.</p>
+            <a href="#" class="card-link">Learn more →</a>
+          </div>
+          <div class="card-right">
+            <div class="card-visual">
+              <div class="visual-shape shape-dev"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" data-index="3" style="--card-color: #2d1b30; --accent: #ff6b9d;">
+        <div class="card-inner">
+          <div class="card-left">
+            <span class="card-number">04</span>
+            <h3 class="card-title">Motion &<br>Animation</h3>
+            <p class="card-desc">Bring your brand to life with micro-interactions, scroll animations, and cinematic motion design that captivates.</p>
+            <a href="#" class="card-link">Learn more →</a>
+          </div>
+          <div class="card-right">
+            <div class="card-visual">
+              <div class="visual-shape shape-motion"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" data-index="4" style="--card-color: #1a2a1a; --accent: #4ade80;">
+        <div class="card-inner">
+          <div class="card-left">
+            <span class="card-number">05</span>
+            <h3 class="card-title">Growth &<br>SEO</h3>
+            <p class="card-desc">Data-driven strategies to grow your online presence. SEO, analytics, and performance optimization that deliver results.</p>
+            <a href="#" class="card-link">Learn more →</a>
+          </div>
+          <div class="card-right">
+            <div class="card-visual">
+              <div class="visual-shape shape-growth"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- BOTTOM SECTION -->
+  <section class="bottom">
+    <div class="bottom-content">
+      <h2>Ready to start<br>your project?</h2>
+      <a href="#" class="bottom-cta">Get in touch</a>
+    </div>
+  </section>
+
+  <script src="script.js"></script>
+</body>
+</html>
